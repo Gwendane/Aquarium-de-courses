@@ -1,1 +1,213 @@
-# Aquarium-de-courses
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aquarium de Courses</title>
+    <link rel="manifest" href="manifest.json">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0a3d62">
+    <style>
+        :root {
+            --primary: #0984e3;
+            --bg-deep: #0a3d62;
+            --bg-light: #3c6382;
+            --text: #2d3436;
+        }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            margin: 0;
+            height: 100vh;
+            overflow: hidden; /* Empêche le scroll de la page entière */
+            background: linear-gradient(to bottom, var(--bg-light), var(--bg-deep));
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* --- L'AQUARIUM (ANIMATIONS) --- */
+        .aquarium {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            z-index: -1;
+            overflow: hidden;
+        }
+
+        .fish {
+            position: absolute;
+            font-size: 30px;
+            user-select: none;
+            transition: transform 0.2s;
+        }
+
+        /* Animation de nage gauche -> droite */
+        @keyframes swim-right {
+            from { left: -100px; }
+            to { left: 110%; }
+        }
+
+        /* Animation de nage droite -> gauche */
+        @keyframes swim-left {
+            from { right: -100px; }
+            to { right: 110%; }
+        }
+
+        /* Bulles */
+        .bubble {
+            position: absolute;
+            bottom: -20px;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            animation: rise 10s infinite ease-in;
+        }
+
+        @keyframes rise {
+            to { transform: translateY(-110vh); opacity: 0; }
+        }
+
+        /* --- L'INTERFACE --- */
+        .container {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(12px);
+            width: 90%;
+            max-width: 400px;
+            max-height: 80vh;
+            padding: 25px;
+            border-radius: 30px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+        }
+
+        h2 { text-align: center; color: var(--bg-deep); margin-top: 0; }
+
+        .input-group { display: flex; gap: 8px; margin-bottom: 20px; }
+        
+        input {
+            flex: 1; padding: 12px; border: 2px solid #bcd;
+            border-radius: 15px; outline: none; font-size: 16px;
+        }
+
+        button#add-btn {
+            background: var(--primary); color: white; border: none;
+            padding: 0 15px; border-radius: 15px; cursor: pointer; font-weight: bold;
+        }
+
+        #list-container { overflow-y: auto; flex-grow: 1; }
+        ul { list-style: none; padding: 0; margin: 0; }
+
+        li {
+            background: white; margin-bottom: 10px; padding: 12px 15px;
+            border-radius: 15px; display: flex; justify-content: space-between;
+            align-items: center; box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn { from { opacity: 0; transform: translateX(-10px); } }
+
+        li.checked { opacity: 0.5; background: #f0f0f0; }
+        li.checked span { text-decoration: line-through; }
+
+        .delete-btn { color: #ff7675; cursor: pointer; font-weight: bold; padding: 5px; }
+
+    </style>
+</head>
+<body>
+
+    <div class="aquarium" id="aquarium"></div>
+
+    <div class="container">
+        <h2>🐟 Mes Courses</h2>
+        <div class="input-group">
+            <input type="text" id="itemInput" placeholder="Ex: Algues, Crevettes...">
+            <button id="add-btn">Ajouter</button>
+        </div>
+        <div id="list-container">
+            <ul id="shoppingList"></ul>
+        </div>
+    </div>
+
+<script>
+    // --- GESTION DE LA LISTE ---
+    const input = document.getElementById('itemInput');
+    const btn = document.getElementById('add-btn');
+    const list = document.getElementById('shoppingList');
+
+    let items = JSON.parse(localStorage.getItem('aquaList')) || [];
+
+    function render() {
+        list.innerHTML = '';
+        items.forEach((item, index) => {
+            const li = document.createElement('li');
+            if(item.checked) li.classList.add('checked');
+            li.innerHTML = `
+                <span style="cursor:pointer; flex:1" onclick="toggleItem(${index})">${item.text}</span>
+                <div class="delete-btn" onclick="removeItem(${index})">✕</div>
+            `;
+            list.appendChild(li);
+        });
+        localStorage.setItem('aquaList', JSON.stringify(items));
+    }
+
+    btn.onclick = () => {
+        if (input.value.trim() !== "") {
+            items.push({ text: input.value, checked: false });
+            input.value = '';
+            render();
+        }
+    };
+
+    window.toggleItem = (index) => { items[index].checked = !items[index].checked; render(); };
+    window.removeItem = (index) => { items.splice(index, 1); render(); };
+    input.onkeypress = (e) => { if(e.key === "Enter") btn.onclick(); };
+    render();
+
+    // --- LOGIQUE DE L'AQUARIUM ---
+    const aquarium = document.getElementById('aquarium');
+    const fishEmojis = ['🐟', '🐠', '🐡', '🐙', '🦐', '🦈'];
+
+    function createFish() {
+        const fish = document.createElement('div');
+        fish.className = 'fish';
+        fish.innerHTML = fishEmojis[Math.floor(Math.random() * fishEmojis.length)];
+        
+        const startTop = Math.random() * 90;
+        const duration = 10 + Math.random() * 20;
+        const isLeft = Math.random() > 0.5;
+
+        fish.style.top = startTop + '%';
+        fish.style.animation = `${isLeft ? 'swim-right' : 'swim-left'} ${duration}s linear`;
+        
+        // Miroir pour que le poisson regarde dans la bonne direction
+        if (!isLeft) fish.style.transform = 'scaleX(-1)';
+
+        aquarium.appendChild(fish);
+
+        // Supprimer le poisson une fois qu'il a fini de nager
+        setTimeout(() => fish.remove(), duration * 1000);
+    }
+
+    function createBubble() {
+        const bubble = document.createElement('div');
+        bubble.className = 'bubble';
+        const size = Math.random() * 15 + 5;
+        bubble.style.width = size + 'px';
+        bubble.style.height = size + 'px';
+        bubble.style.left = Math.random() * 100 + '%';
+        bubble.style.animationDuration = (Math.random() * 5 + 5) + 's';
+        aquarium.appendChild(bubble);
+        setTimeout(() => bubble.remove(), 10000);
+    }
+
+    // Générer des poissons et des bulles régulièrement
+    setInterval(createFish, 3000);
+    setInterval(createBubble, 1500);
+    // En créer quelques uns au départ
+    for(let i=0; i<5; i++) createFish();
+</script>
+
+</body>
+</html>
